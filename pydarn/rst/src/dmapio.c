@@ -216,6 +216,20 @@ read_dmap_rec(PyObject *self, PyObject *args)
           PyDict_SetItem(beamData,Py_BuildValue("s", "xcfd"), myList);
           Py_CLEAR(myList);
         }
+        else if((strcmp(a->name,"scfd")==0) && (a->type==DATAFLOAT) && (a->dim==3))
+        {
+          PyObject *myList = PyList_New(0);
+          for(i=0;i<nrang;i++)
+            for(j=0;j<a->rng[1];j++)
+              for(k=0;k<2;k++)
+              {
+                PyObject *myNum = Py_BuildValue("f", a->data.fptr[(i*a->rng[1]+j)*2+k]);
+                PyList_Append(myList,myNum);
+                Py_CLEAR(myNum);
+              }
+          PyDict_SetItem(beamData,Py_BuildValue("s", "scfd"), myList);
+          Py_CLEAR(myList);
+        }
         else
         {
           PyObject *myList = PyList_New(0);

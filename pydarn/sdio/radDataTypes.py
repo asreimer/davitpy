@@ -691,7 +691,7 @@ class radBaseData():
         if(aDict.has_key('noise.mean')): 
           self.noisemean = aDict['noise.mean']
         continue
-      elif(attr == 'acfd' or attr == 'xcfd'):
+      elif(attr == 'acfd' or attr == 'xcfd' or attr == 'scfd'):
         if(aDict.has_key(attr)): 
           setattr(self,attr,[])
           for i in range(self.parent.prm.nrang):
@@ -980,6 +980,7 @@ class rawData(radBaseData):
     self.pwr0 = []      #acf data
     self.acfd = []      #acf data
     self.xcfd = []      #xcf data
+    self.scfd = []      #scf data
     self.parent = parent #reference to parent beam
     
     if(rawDict != None): self.updateValsFromDict(rawDict)
