@@ -47,7 +47,7 @@ from matplotlib.figure import Figure
 def plotRti(sTime,rad,eTime=None,bmnum=7,fileType='fitex',params=['velocity','power','width'], \
               scales=[],channel=None,coords='gate',colors='lasse',yrng=-1,gsct=False,lowGray=False, \
               pdf=False,png=False,dpi=500,show=True,retfig=False,filtered=False,fileName=None, \
-              custType='fitex', tFreqBands=[], myFile=None,figure=None,xtick_size=9,ytick_size=9,xticks=None,axvlines=None,plotTerminator=False):
+              custType='fitex', tFreqBands=[], myFile=None,figure=None,xtick_size=9,ytick_size=9,xticks=None,axvlines=None,plotTerminator=False, errorfilter=None):
   """create an rti plot for a secified radar and time period
 
   **Args**:
@@ -171,6 +171,7 @@ def plotRti(sTime,rad,eTime=None,bmnum=7,fileType='fitex',params=['velocity','po
   #initialize empty lists
   vel,pow,wid,elev,phi0,times,freq,cpid,nave,nsky,nsch,slist,mode,rsep,nrang,frang,gsflg = \
         [],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]
+  vel_err=[]
   for i in range(len(tbands)):
     times.append([])
     cpid.append([])
@@ -189,6 +190,7 @@ def plotRti(sTime,rad,eTime=None,bmnum=7,fileType='fitex',params=['velocity','po
     elev.append([])
     phi0.append([])
     gsflg.append([])
+    vel_err.append([])
   
   #read the parameters of interest
   while(myBeam != None):
@@ -213,6 +215,7 @@ def plotRti(sTime,rad,eTime=None,bmnum=7,fileType='fitex',params=['velocity','po
           if('elevation' in params): elev[i].append(myBeam.fit.elv)
           if('phi0' in params): phi0[i].append(myBeam.fit.phi0)
           gsflg[i].append(myBeam.fit.gflg)
+          vel_err[i].append(myBeam.fit.v_e)
       
     myBeam = radDataReadRec(myFile)
 
@@ -252,6 +255,7 @@ def plotRti(sTime,rad,eTime=None,bmnum=7,fileType='fitex',params=['velocity','po
       elif(params[p] == 'elevation'): pArr = elev[fplot]
       elif(params[p] == 'phi0'): pArr = phi0[fplot]
       pos = [.1,figtop-figheight*(p+1)+.02,.76,figheight-.02]
+      pErr = pow[fplot]
       
       #draw the axis
       ax = drawAxes(rtiFig,times[fplot],rad,cpid[fplot],bmnum,nrang[fplot],frang[fplot],rsep[fplot],p==len(params)-1,yrng=yrng,coords=coords,\
@@ -282,7 +286,11 @@ def plotRti(sTime,rad,eTime=None,bmnum=7,fileType='fitex',params=['velocity','po
         
         if slist[fplot][i] != None:
           for j in range(len(slist[fplot][i])):
-            if(not gsct or gsflg[fplot][i][j] == 0):
+            if(errorfilter is None):
+              errorfilter = -1000000.
+            if (pErr[i][j] < errorfilter):
+              data[tcnt][slist[fplot][i][j]] = -100000.
+            elif(not gsct or gsflg[fplot][i][j] == 0):
               data[tcnt][slist[fplot][i][j]] = pArr[i][j]
             elif gsct and gsflg[fplot][i][j] == 1:
               data[tcnt][slist[fplot][i][j]] = -100000.
