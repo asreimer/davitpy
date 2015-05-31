@@ -47,7 +47,7 @@ from matplotlib.figure import Figure
 def plotRti(sTime,rad,eTime=None,bmnum=7,fileType='fitex',params=['velocity','power','width'], \
               scales=[],channel=None,coords='gate',colors='lasse',yrng=-1,gsct=False,lowGray=False, \
               pdf=False,png=False,dpi=500,show=True,retfig=False,filtered=False,fileName=None, \
-              custType='fitex', tFreqBands=[], myFile=None,figure=None,xtick_size=9,ytick_size=9,xticks=None,axvlines=None,plotTerminator=False):
+              custType='fitex', tFreqBands=[], myFile=None,figure=None,xtick_size=9,ytick_size=9,xticks=None,axvlines=None,plotTerminator=False, vel_filter=None):
   """create an rti plot for a secified radar and time period
 
   **Args**:
@@ -106,10 +106,10 @@ def plotRti(sTime,rad,eTime=None,bmnum=7,fileType='fitex',params=['velocity','po
   "error, coords must be one of 'gate','rng','geo','mag"
   assert(isinstance(bmnum,int)),'error, beam must be integer'
   assert(0 < len(params) < 6),'error, must input between 1 and 5 params in LIST form'
-  for i in range(0,len(params)):
-    assert(params[i] == 'velocity' or params[i] == 'power' or params[i] == 'width' or \
-    params[i] == 'elevation' or params[i] == 'phi0'), \
-    "error, allowable params are 'velocity','power','width','elevation','phi0'"
+ # for i in range(0,len(params)):
+ #   assert(params[i] == 'velocity' or params[i] == 'power' or params[i] == 'width' or \
+ #   params[i] == 'elevation' or params[i] == 'phi0'), \
+ #   "error, allowable params are 'velocity','power','width','elevation','phi0'"
   assert(scales == [] or len(scales)==len(params)), \
   'error, if present, scales must have same number of elements as params'
   assert(yrng == -1 or (isinstance(yrng,list) and yrng[0] <= yrng[1])), \
@@ -125,6 +125,8 @@ def plotRti(sTime,rad,eTime=None,bmnum=7,fileType='fitex',params=['velocity','po
       elif(params[i] == 'width'): tscales.append([0,150])
       elif(params[i] == 'elevation'): tscales.append([0,50])
       elif(params[i] == 'phi0'): tscales.append([-numpy.pi,numpy.pi])
+      elif(params[i] == 'vel_err'): tscales.append([0,500])
+      elif(params[i] == 'wid_err'): tscales.append([0,500])
     else: tscales.append(scales[i])
   scales = tscales
 
@@ -171,6 +173,7 @@ def plotRti(sTime,rad,eTime=None,bmnum=7,fileType='fitex',params=['velocity','po
   #initialize empty lists
   vel,pow,wid,elev,phi0,times,freq,cpid,nave,nsky,nsch,slist,mode,rsep,nrang,frang,gsflg = \
         [],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]
+  vel_err,wid_err = [],[]
   for i in range(len(tbands)):
     times.append([])
     cpid.append([])
@@ -189,6 +192,8 @@ def plotRti(sTime,rad,eTime=None,bmnum=7,fileType='fitex',params=['velocity','po
     elev.append([])
     phi0.append([])
     gsflg.append([])
+    vel_err.append([])
+    wid_err.append([])
   
   #read the parameters of interest
   while(myBeam != None):
@@ -207,11 +212,13 @@ def plotRti(sTime,rad,eTime=None,bmnum=7,fileType='fitex',params=['velocity','po
           freq[i].append(myBeam.prm.tfreq/1e3)
           slist[i].append(myBeam.fit.slist)
           mode[i].append(myBeam.prm.ifmode)
-          if('velocity' in params): vel[i].append(myBeam.fit.v)
-          if('power' in params): pow[i].append(myBeam.fit.p_l)
+          vel[i].append(myBeam.fit.v)
+          pow[i].append(myBeam.fit.p_l)
           if('width' in params): wid[i].append(myBeam.fit.w_l)
           if('elevation' in params): elev[i].append(myBeam.fit.elv)
           if('phi0' in params): phi0[i].append(myBeam.fit.phi0)
+          vel_err[i].append(myBeam.fit.v_e)
+          if('wid_err' in params): wid_err[i].append(myBeam.fit.w_l_e)
           gsflg[i].append(myBeam.fit.gflg)
       
     myBeam = radDataReadRec(myFile)
@@ -234,24 +241,29 @@ def plotRti(sTime,rad,eTime=None,bmnum=7,fileType='fitex',params=['velocity','po
         rtiFig = figure
   
     #give the plot a title
-    rtiTitle(rtiFig,sTime,rad,fileType,bmnum)
+    rtiTitle(rtiFig,sTime,rad,fileType,bmnum,ypos=0.88)
     #plot the noise bar
-    plotNoise(rtiFig,times[fplot],nsky[fplot],nsch[fplot])
+    #plotNoise(rtiFig,times[fplot],nsky[fplot],nsch[fplot])
     #plot the frequency bar
-    plotFreq(rtiFig,times[fplot],freq[fplot],nave[fplot])
+    #plotFreq(rtiFig,times[fplot],freq[fplot],nave[fplot])
     #plot the cpid bar
-    plotCpid(rtiFig,times[fplot],cpid[fplot],mode[fplot])
+    #plotCpid(rtiFig,times[fplot],cpid[fplot],mode[fplot])
     
     #plot each of the parameter panels
-    figtop = .77
-    figheight = .72/len(params)
+    #figtop = .77
+    #figheight = .72/len(params)
+    figtop = .85
+    figheight = .8/len(params)
     for p in range(len(params)):
       if(params[p] == 'velocity'): pArr = vel[fplot]
       elif(params[p] == 'power'): pArr = pow[fplot]
       elif(params[p] == 'width'): pArr = wid[fplot]
       elif(params[p] == 'elevation'): pArr = elev[fplot]
       elif(params[p] == 'phi0'): pArr = phi0[fplot]
-      pos = [.1,figtop-figheight*(p+1)+.02,.76,figheight-.02]
+      elif(params[p] == 'vel_err'): pArr = vel_err[fplot]
+      elif(params[p] == 'wid_err'): pArr = wid_err[fplot]
+      #pos = [.1,figtop-figheight*(p+1)+.02,.76,figheight-.02]
+      pos = [.1,figtop-figheight*(p+1)+.05,.74,figheight-.04]
       
       #draw the axis
       ax = drawAxes(rtiFig,times[fplot],rad,cpid[fplot],bmnum,nrang[fplot],frang[fplot],rsep[fplot],p==len(params)-1,yrng=yrng,coords=coords,\
@@ -261,7 +273,7 @@ def plotRti(sTime,rad,eTime=None,bmnum=7,fileType='fitex',params=['velocity','po
       if(pArr == []): continue
       
       rmax = max(nrang[fplot])
-      data=numpy.zeros((len(times[fplot])*2,rmax))+100000
+      data=numpy.zeros((len(times[fplot])*2,rmax))+np.nan
       if gsct: gsdata=numpy.zeros((len(times[fplot])*2,rmax))+100000
       x=numpy.zeros(len(times[fplot])*2)
       tcnt = 0
@@ -286,7 +298,19 @@ def plotRti(sTime,rad,eTime=None,bmnum=7,fileType='fitex',params=['velocity','po
               data[tcnt][slist[fplot][i][j]] = pArr[i][j]
             elif gsct and gsflg[fplot][i][j] == 1:
               data[tcnt][slist[fplot][i][j]] = -100000.
-  
+            if vel_filter is not None:
+              if (vel_err[fplot][i][j] > vel_filter):
+                data[tcnt][slist[fplot][i][j]] = np.nan
+            if params[p] is 'power':
+              if pow[fplot][i][j] < 0:
+                data[tcnt][slist[fplot][i][j]] = np.nan
+            if params[p] is 'velocity' or 'vel_err':
+              if pow[fplot][i][j] < 0:
+                data[tcnt][slist[fplot][i][j]] = np.nan
+            if pow[fplot][i][j] < 0:
+              if numpy.abs(vel[fplot][i][j]) > 1000:
+                data[tcnt][slist[fplot][i][j]] = np.nan
+
       if (coords != 'gate' and coords != 'rng') or plotTerminator == True:
         site    = pydarn.radar.network().getRadarByCode(rad).getSiteByDate(times[fplot][0])
         myFov   = pydarn.radar.radFov.fov(site=site,ngates=rmax,nbeams=site.maxbeam,rsep=rsep[fplot][0],coords=coords, date_time=times[fplot][0])
@@ -333,10 +357,23 @@ def plotRti(sTime,rad,eTime=None,bmnum=7,fileType='fitex',params=['velocity','po
             ax.pcolormesh(X, Y, daylight.T, lw=0,alpha=0.10,cmap=matplotlib.cm.binary_r,zorder=99)
       ################################################################################
       
-      cmap,norm,bounds = utils.plotUtils.genCmap(params[p],scales[p],colors=colors,lowGray=lowGray)
-      
-      pcoll = ax.pcolormesh(X, Y, data[:tcnt][:].T, lw=0.01,edgecolors='None',alpha=1,lod=True,cmap=cmap,norm=norm)
-  
+      #cmap,norm,bounds = utils.plotUtils.genCmap(params[p],scales[p],colors=colors,lowGray=lowGray)
+
+      if (params[p] == 'velocity') or (params[p] == 'vel_err'):
+        cmap = matplotlib.cm.jet_r
+      else:
+        cmap = matplotlib.cm.jet
+
+      cmap.set_bad('w', 1.0)
+      cmap.set_over(cmap(1.0), 1.0)
+      cmap.set_under(cmap(0.0), 1.0)
+      bounds = numpy.round(numpy.linspace(scales[p][0], scales[p][1], 11))
+      norm = matplotlib.colors.BoundaryNorm(bounds, cmap.N)
+      Zm = numpy.ma.masked_where(np.isnan(data[:tcnt][:].T),data[:tcnt][:].T)
+      print np.shape(np.where(np.isfinite(data[:tcnt][:].T)))
+      pcoll = ax.pcolormesh(X, Y, Zm, lw=0.01,edgecolors='None',alpha=1,lod=True,cmap=cmap,norm=norm)
+      ax.xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%H:%M'))  
+
       cb = utils.drawCB(rtiFig,pcoll,cmap,norm,map=0,pos=[pos[0]+pos[2]+.02, pos[1], 0.02, pos[3]])
       
       l = []
@@ -352,7 +389,8 @@ def plotRti(sTime,rad,eTime=None,bmnum=7,fileType='fitex',params=['velocity','po
           l.append(' ')
           continue
         l.append(str(int(bounds[i])))
-      cb.ax.set_yticklabels(l)
+      print bounds, norm
+      #cb.ax.set_yticklabels(l)
         
       #set colorbar ticklabel size
       for t in cb.ax.get_yticklabels():
@@ -499,7 +537,7 @@ def drawAxes(myFig,times,rad,cpid,bmnum,nrang,frang,rsep,bottom,yrng=-1,coords='
 
   return ax
     
-def rtiTitle(fig,d,rad,fileType,beam,xmin=.1,xmax=.86):
+def rtiTitle(fig,d,rad,fileType,beam,xmin=.1,xmax=.86,ypos=.95):
   """draws title for an rti plot
 
   **Args**:
@@ -522,12 +560,12 @@ def rtiTitle(fig,d,rad,fileType,beam,xmin=.1,xmax=.86):
   """
   r=pydarn.radar.network().getRadarByCode(rad)
   
-  fig.text(xmin,.95,r.name+'  ('+fileType+')',ha='left',weight=550)
+  fig.text(xmin,ypos,r.name+'  ('+fileType+')',ha='left',weight=550)
   
-  fig.text((xmin+xmax)/2.,.95,str(d.day)+'/'+calendar.month_name[d.month][:3]+'/'+str(d.year), \
+  fig.text((xmin+xmax)/2.,ypos,str(d.day)+'/'+calendar.month_name[d.month][:3]+'/'+str(d.year), \
   weight=550,size='large',ha='center')
   
-  fig.text(xmax,.95,'Beam '+str(beam),weight=550,ha='right')
+  fig.text(xmax,ypos,'Beam '+str(beam),weight=550,ha='right')
   
 def plotCpid(myFig,times,cpid,mode,pos=[.1,.77,.76,.05]):
   """plots cpid panel at position pos
